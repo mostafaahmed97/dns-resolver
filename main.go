@@ -6,11 +6,13 @@ import (
 )
 
 var roota = "198.41.0.4:53"
+var comtld = "192.41.162.30:53"
+var googleas = "216.239.34.10:53"
 
 func main() {
-	msg := NewDNSMessage("spotify.net")
+	msg := NewDNSMessage("google.com")
 
-	remoteaddr, _ := net.ResolveUDPAddr("udp", roota)
+	remoteaddr, _ := net.ResolveUDPAddr("udp", googleas)
 
 	conn, err := net.DialUDP("udp", nil, remoteaddr)
 	if err != nil {
@@ -22,8 +24,12 @@ func main() {
 	fmt.Println("sent the packet")
 
 	fmt.Println("reading from the conn")
-	response := make([]byte, 1024)
 
-	n, addr, _ := conn.ReadFromUDP(response)
-	fmt.Println("read sth,", n, addr, string(response[:n]))
+	b := make([]byte, 1024)
+
+	n, _, _ := conn.ReadFromUDP(b)
+	bytes := b[:n]
+
+	response := FromBytes(bytes)
+	fmt.Println(response)
 }
