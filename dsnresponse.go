@@ -1,11 +1,5 @@
 package main
 
-import (
-	"encoding/binary"
-	"fmt"
-	"strings"
-)
-
 var rrtypes = map[uint16]string{
 	1:  "A",
 	2:  "NS",
@@ -54,9 +48,9 @@ type DNSResponse struct {
 	additional []Additional
 }
 
-func btoi(b []byte) uint16 {
-	return binary.BigEndian.Uint16(b)
-}
+// func btoi(b []byte) uint16 {
+// 	return binary.BigEndian.Uint16(b)
+// }
 
 // returns host and number of bytes read
 func btohost(b []byte, offset int, datalength int) (string, int) {
@@ -69,27 +63,26 @@ func btohost(b []byte, offset int, datalength int) (string, int) {
 		}
 
 		ispointer := b[curr] == 0xc0
-		part := ""
+		label := ""
 
 		// part can be a pointer referencing a name encountered before
-		//
 		if ispointer {
-			part, _ = btohost(b, int(b[curr+1]), 0)
+			label, _ = btohost(b, int(b[curr+1]), 0)
 
 			// first byte of pointer
 			curr += 2
 		} else {
-			partlen := int(b[curr])
+			len := int(b[curr])
 			curr += 1
 
-			part = string(b[curr : curr+partlen])
-			curr += partlen
+			label = string(b[curr : curr+len])
+			curr += len
 		}
 
 		if host == "" {
-			host = part
+			host = label
 		} else {
-			host = host + "." + part
+			host = host + "." + label
 		}
 
 		if b[curr] == 0x00 {
@@ -100,21 +93,6 @@ func btohost(b []byte, offset int, datalength int) (string, int) {
 	}
 
 	return host, curr - offset
-}
-
-func getipv4addr(b []byte) string {
-	octets := []string{
-		fmt.Sprintf("%d", int(b[0])),
-		fmt.Sprintf("%d", int(b[1])),
-		fmt.Sprintf("%d", int(b[2])),
-		fmt.Sprintf("%d", int(b[3])),
-	}
-
-	return strings.Join(octets, ".")
-}
-
-func getipv6addr(b []byte) string {
-	return "PLACEHOLDER IPV6"
 }
 
 func FromBytes(b []byte) *DNSResponse {

@@ -12,7 +12,7 @@ var googleas = "216.239.34.10:53"
 func main() {
 	msg := NewDNSMessage("google.com")
 
-	remoteaddr, _ := net.ResolveUDPAddr("udp", googleas)
+	remoteaddr, _ := net.ResolveUDPAddr("udp", comtld)
 
 	conn, err := net.DialUDP("udp", nil, remoteaddr)
 	if err != nil {
