@@ -2,34 +2,39 @@ package main
 
 import (
 	"fmt"
-	"net"
+	"os"
 )
 
-var roota = "198.41.0.4:53"
-var comtld = "192.41.162.30:53"
-var googleas = "216.239.34.10:53"
+var roots = map[string]string{
+	"a": "198.41.0.4",
+	"b": "170.247.170.2",
+	"c": "192.33.4.12",
+	"d": "199.7.91.13",
+	"e": "192.203.230.10",
+	"f": "192.5.5.241",
+	"g": "192.112.36.4",
+	"h": "198.97.190.53",
+	"i": "192.36.148.17",
+	"j": "192.58.128.30",
+	"k": "193.0.14.129",
+	"l": "199.7.83.42",
+	"m": "202.12.27.33",
+}
 
 func main() {
-	msg := NewDNSMessage("google.com")
-
-	remoteaddr, _ := net.ResolveUDPAddr("udp", comtld)
-
-	conn, err := net.DialUDP("udp", nil, remoteaddr)
-	if err != nil {
-		fmt.Println("failed to connect,", err)
+	if len(os.Args) <= 1 {
+		fmt.Println("missing url")
+		os.Exit(1)
 	}
 
-	defer conn.Close()
-	conn.Write(msg.bytes)
-	fmt.Println("sent the packet")
+	r := "a"
+	url := os.Args[1]
 
-	fmt.Println("reading from the conn")
+	if len(os.Args) >= 2 {
+		r = os.Args[2]
+	}
 
-	b := make([]byte, 1024)
-
-	n, _, _ := conn.ReadFromUDP(b)
-	bytes := b[:n]
-
-	response := FromBytes(bytes)
-	fmt.Println(response)
+	fmt.Printf("resolving: %s, using root %s: %s\n", url, r, roots[r])
+	ip := ResolveURLFromRoot(url, roots[r])
+	fmt.Printf("%s: %s\n", url, ip)
 }

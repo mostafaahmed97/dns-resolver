@@ -42,15 +42,11 @@ type DNSResponse struct {
 	authcount uint16
 	addcount  uint16
 
-	queries    Query
-	answers    []Answer
-	autorities []Authority
-	additional []Additional
+	queries     Query
+	answers     []Answer
+	authorities []Authority
+	additional  []Additional
 }
-
-// func btoi(b []byte) uint16 {
-// 	return binary.BigEndian.Uint16(b)
-// }
 
 // returns host and number of bytes read
 func btohost(b []byte, offset int, datalength int) (string, int) {
@@ -182,8 +178,8 @@ func FromBytes(b []byte) *DNSResponse {
 		ns, n := btohost(b, curr, datalength)
 		curr += n
 
-		response.autorities = append(
-			response.autorities,
+		response.authorities = append(
+			response.authorities,
 			Authority{
 				name:   name,
 				ns:     ns,
