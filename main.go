@@ -24,7 +24,6 @@ var roots = map[string]string{
 }
 
 func main() {
-	fmt.Println(os.Args)
 	if len(os.Args) < 2 {
 		fmt.Println("missing url")
 		os.Exit(1)

@@ -33,19 +33,19 @@ func ResolveURLFromRoot(url string, root string) string {
 
 		response := ParseDNSReponse(b[:n])
 
-		if response.anscount > 0 {
-			return response.answers[0].address
+		if response.AnsCount > 0 {
+			return response.Answers[0].Address.String()
 		}
 
-		if response.authcount == 0 {
+		if response.AuthCount == 0 {
 			fmt.Println("no auth found for", url)
 			os.Exit(1)
 		}
 
 		// Ask the next server
-		for _, rr := range response.additional {
-			if rr.rrtype == "A" {
-				target = rr.address + ":53"
+		for _, rr := range response.Additional {
+			if rr.Record.RRType == "A" {
+				target = rr.Address.String() + ":53"
 			}
 		}
 	}

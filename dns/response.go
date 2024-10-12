@@ -1,59 +1,57 @@
 package dns
 
+import (
+	"net"
+)
+
 var rrtypes = map[uint16]string{
 	1:  "A",
 	2:  "NS",
 	28: "AAAA",
 }
 
+type ResourceRecord struct {
+	Name   string
+	RRType string
+	Class  string
+}
+
 type Query struct {
-	name  string
-	qtype string
-	class string
+	Record ResourceRecord
 }
 
 type Answer struct {
-	name    string
-	rrtype  string
-	class   string
-	ttl     int
-	address string
+	Record  ResourceRecord
+	Address net.IP
+	TTL     uint32
 }
 
 type Authority struct {
-	name   string
-	rrtype string
-	ns     string
-	class  string
-	ttl    int
+	Record     ResourceRecord
+	Nameserver string
+	TTL        uint32
 }
 
 type Additional struct {
-	name    string
-	rrtype  string
-	class   string
-	address string
-	ttl     int
+	Record  ResourceRecord
+	Address net.IP
+	TTL     uint32
 }
 
 type DNSResponse struct {
-	qcount    uint16
-	anscount  uint16
-	authcount uint16
-	addcount  uint16
+	QCount          uint16
+	AnsCount        uint16
+	AuthCount       uint16
+	AdditionalCount uint16
 
-	queries     []Query
-	answers     []Answer
-	authorities []Authority
-	additional  []Additional
-}
-
-func (r DNSResponse) hasAnswer() bool {
-	return r.anscount > 0
+	Queries     []Query
+	Answers     []Answer
+	Authorities []Authority
+	Additional  []Additional
 }
 
 // returns host and number of bytes read
-func btohost(b []byte, offset int, dataLength int) (string, int) {
+func parseHost(b []byte, offset int, dataLength int) (string, int) {
 	cursor := offset
 	host := ""
 
@@ -63,26 +61,31 @@ func btohost(b []byte, offset int, dataLength int) (string, int) {
 		}
 
 		isPointer := b[cursor] == 0xc0
-		label := ""
+		part := ""
 
 		// part can be a pointer referencing a name encountered before
 		if isPointer {
-			label, _ = btohost(b, int(b[cursor+1]), 0)
+			part, _ = parseHost(b, int(b[cursor+1]), 0)
 
-			// first byte of pointer
 			cursor += 2
+
+			// assume name that starts with pointer
+			// is only a pointer
+			if host == "" {
+				return part, 2
+			}
 		} else {
 			len := int(b[cursor])
 			cursor += 1
 
-			label = string(b[cursor : cursor+len])
+			part = string(b[cursor : cursor+len])
 			cursor += len
 		}
 
 		if host == "" {
-			host = label
+			host = part
 		} else {
-			host = host + "." + label
+			host = host + "." + part
 		}
 
 		if b[cursor] == 0x00 {
@@ -94,137 +97,121 @@ func btohost(b []byte, offset int, dataLength int) (string, int) {
 	return host, cursor - offset
 }
 
+func parseRR(b []byte, offset int) (ResourceRecord, int) {
+	cursor := offset
+
+	name, n := parseHost(b, cursor, 0)
+	cursor += n
+
+	rrtype := rrtypes[btoi16(b[cursor:cursor+2])]
+	cursor += 2
+
+	class := "IN"
+	cursor += 2
+
+	return ResourceRecord{
+		Name:   name,
+		RRType: rrtype,
+		Class:  class,
+	}, cursor - offset
+}
+
+type info struct {
+	ttl        uint32
+	nameserver string
+	address    net.IP
+}
+
+func parseInfo(b []byte, offset int, hasAddress bool) (info, int) {
+	cursor := offset
+
+	ttl := btoi32(b[cursor : cursor+4])
+	cursor += 4
+
+	dataLen := int(btoi16(b[cursor : cursor+2]))
+	cursor += 2
+
+	address := net.IP{}
+	nameserver := ""
+
+	if hasAddress {
+		address = net.IP(b[cursor : cursor+dataLen])
+	} else {
+		nameserver, _ = parseHost(b, cursor, dataLen)
+	}
+
+	cursor += dataLen
+
+	return info{
+		ttl:        ttl,
+		nameserver: nameserver,
+		address:    address,
+	}, cursor - offset
+}
+
 func ParseDNSReponse(b []byte) *DNSResponse {
 	response := DNSResponse{
-		qcount:    btoi(b[4:6]),
-		anscount:  btoi(b[6:8]),
-		authcount: btoi(b[8:10]),
-		addcount:  btoi(b[10:12]),
+		QCount:          btoi16(b[4:6]),
+		AnsCount:        btoi16(b[6:8]),
+		AuthCount:       btoi16(b[8:10]),
+		AdditionalCount: btoi16(b[10:12]),
 	}
 
 	curr := 12
-	for range response.qcount {
+	for range response.QCount {
+		rr, n := parseRR(b, curr)
+		curr += n
 
-		name, read := btohost(b, curr, 0)
-		curr += read
-
-		qtype := rrtypes[btoi(b[curr:curr+2])]
-		curr += 2
-
-		class := ""
-		if btoi(b[curr:curr+2]) == 1 {
-			class = "IN"
-		}
-		curr += 2
-
-		response.queries = append(response.queries,
-			Query{
-				name:  name,
-				qtype: qtype,
-				class: class,
-			},
+		response.Queries = append(response.Queries,
+			Query{Record: rr},
 		)
 	}
 
-	for range response.anscount {
-		name, _ := btohost(b, int(b[curr+1]), 0)
-		curr += 2
-
-		rrtype := rrtypes[btoi(b[curr:curr+2])]
-		curr += 2
-
-		// skip class
-		curr += 2
-
-		ttl := int(btoi(b[curr : curr+4]))
-		curr += 4
-
-		// skip data length
-		curr += 2
-
-		address := ""
-		if rrtype == "A" {
-			address = parseIPv4Addr(b[curr : curr+4])
-			curr += 4
-		} else if rrtype == "AAA" {
-			address = parseIPv6Addr(b[curr : curr+16])
-			curr += 16
-		}
-
-		response.answers = append(
-			response.answers,
-			Answer{
-				ttl:     ttl,
-				name:    name,
-				rrtype:  rrtype,
-				address: address,
-			})
-	}
-
-	for range response.authcount {
-		// name is compressed, get offset from start and
-		// extract directly
-		name, _ := btohost(b, int(b[curr+1]), 0)
-		curr += 2
-
-		rrtype := rrtypes[btoi(b[curr:curr+2])]
-		curr += 2
-
-		//skip class for now
-		curr += 2
-
-		ttl := int(btoi(b[curr : curr+4]))
-		curr += 4
-
-		// skip data length
-		datalength := int(btoi(b[curr : curr+2]))
-		curr += 2
-
-		ns, n := btohost(b, curr, datalength)
+	for range response.AnsCount {
+		rr, n := parseRR(b, curr)
 		curr += n
 
-		response.authorities = append(
-			response.authorities,
-			Authority{
-				name:   name,
-				ns:     ns,
-				rrtype: rrtype,
-				ttl:    ttl,
+		info, n := parseInfo(b, curr, true)
+		curr += n
+
+		response.Answers = append(
+			response.Answers,
+			Answer{
+				Record:  rr,
+				TTL:     info.ttl,
+				Address: info.address,
 			})
 	}
 
-	for range response.addcount {
-		name, _ := btohost(b, curr, 0)
-		curr += 2
+	for range response.AuthCount {
+		rr, n := parseRR(b, curr)
+		curr += n
 
-		rrtype := rrtypes[btoi(b[curr:curr+2])]
-		curr += 2
+		info, n := parseInfo(b, curr, false)
+		curr += n
 
-		// skip class
-		curr += 2
+		response.Authorities = append(
+			response.Authorities,
+			Authority{
+				Record:     rr,
+				TTL:        info.ttl,
+				Nameserver: info.nameserver,
+			})
+	}
 
-		ttl := int(btoi(b[curr : curr+4]))
-		curr += 4
+	for range response.AdditionalCount {
+		rr, n := parseRR(b, curr)
+		curr += n
 
-		// skip data length
-		curr += 2
+		info, n := parseInfo(b, curr, true)
+		curr += n
 
-		address := ""
-		if rrtype == "A" {
-			address = parseIPv4Addr(b[curr : curr+4])
-			curr += 4
-		} else if rrtype == "AAAA" {
-			address = parseIPv6Addr(b[curr : curr+16])
-			curr += 16
-		}
-
-		response.additional = append(
-			response.additional,
+		response.Additional = append(
+			response.Additional,
 			Additional{
-				name:    name,
-				address: address,
-				rrtype:  rrtype,
-				ttl:     ttl,
+				Record:  rr,
+				TTL:     info.ttl,
+				Address: info.address,
 			},
 		)
 	}
