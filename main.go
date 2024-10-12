@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/mostafaahmed97/dns-resolver/dns"
 )
 
 var roots = map[string]string{
@@ -22,7 +24,8 @@ var roots = map[string]string{
 }
 
 func main() {
-	if len(os.Args) <= 1 {
+	fmt.Println(os.Args)
+	if len(os.Args) < 2 {
 		fmt.Println("missing url")
 		os.Exit(1)
 	}
@@ -30,11 +33,11 @@ func main() {
 	r := "a"
 	url := os.Args[1]
 
-	if len(os.Args) >= 2 {
+	if len(os.Args) >= 3 {
 		r = os.Args[2]
 	}
 
 	fmt.Printf("resolving: %s, using root %s: %s\n", url, r, roots[r])
-	ip := ResolveURLFromRoot(url, roots[r])
+	ip := dns.ResolveURLFromRoot(url, roots[r])
 	fmt.Printf("%s: %s\n", url, ip)
 }

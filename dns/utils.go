@@ -1,4 +1,4 @@
-package main
+package dns
 
 import (
 	"encoding/binary"
@@ -10,7 +10,7 @@ func btoi(b []byte) uint16 {
 	return binary.BigEndian.Uint16(b)
 }
 
-func getipv4addr(b []byte) string {
+func parseIPv4Addr(b []byte) string {
 	octets := []string{
 		fmt.Sprintf("%d", int(b[0])),
 		fmt.Sprintf("%d", int(b[1])),
@@ -21,6 +21,6 @@ func getipv4addr(b []byte) string {
 	return strings.Join(octets, ".")
 }
 
-func getipv6addr(b []byte) string {
+func parseIPv6Addr(b []byte) string {
 	return "PLACEHOLDER IPV6"
 }

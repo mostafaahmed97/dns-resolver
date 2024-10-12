@@ -1,4 +1,4 @@
-package main
+package dns
 
 import (
 	"fmt"
@@ -31,7 +31,7 @@ func ResolveURLFromRoot(url string, root string) string {
 		b := make([]byte, 1024)
 		n, _, _ := conn.ReadFromUDP(b)
 
-		response := FromBytes(b[:n])
+		response := ParseDNSReponse(b[:n])
 
 		if response.anscount > 0 {
 			return response.answers[0].address

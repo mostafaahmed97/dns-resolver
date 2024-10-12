@@ -1,9 +1,9 @@
-package main
+package dns
 
 var rrtypes = map[uint16]string{
 	1:  "A",
 	2:  "NS",
-	28: "AAA",
+	28: "AAAA",
 }
 
 type Query struct {
@@ -42,37 +42,41 @@ type DNSResponse struct {
 	authcount uint16
 	addcount  uint16
 
-	queries     Query
+	queries     []Query
 	answers     []Answer
 	authorities []Authority
 	additional  []Additional
 }
 
+func (r DNSResponse) hasAnswer() bool {
+	return r.anscount > 0
+}
+
 // returns host and number of bytes read
-func btohost(b []byte, offset int, datalength int) (string, int) {
-	curr := offset
+func btohost(b []byte, offset int, dataLength int) (string, int) {
+	cursor := offset
 	host := ""
 
 	for {
-		if datalength > 0 && (curr-offset) >= datalength {
+		if dataLength > 0 && (cursor-offset) >= dataLength {
 			break
 		}
 
-		ispointer := b[curr] == 0xc0
+		isPointer := b[cursor] == 0xc0
 		label := ""
 
 		// part can be a pointer referencing a name encountered before
-		if ispointer {
-			label, _ = btohost(b, int(b[curr+1]), 0)
+		if isPointer {
+			label, _ = btohost(b, int(b[cursor+1]), 0)
 
 			// first byte of pointer
-			curr += 2
+			cursor += 2
 		} else {
-			len := int(b[curr])
-			curr += 1
+			len := int(b[cursor])
+			cursor += 1
 
-			label = string(b[curr : curr+len])
-			curr += len
+			label = string(b[cursor : cursor+len])
+			cursor += len
 		}
 
 		if host == "" {
@@ -81,17 +85,16 @@ func btohost(b []byte, offset int, datalength int) (string, int) {
 			host = host + "." + label
 		}
 
-		if b[curr] == 0x00 {
-			// skips terminator or second byte of pointer
-			curr += 1
+		if b[cursor] == 0x00 {
+			cursor += 1
 			break
 		}
 	}
 
-	return host, curr - offset
+	return host, cursor - offset
 }
 
-func FromBytes(b []byte) *DNSResponse {
+func ParseDNSReponse(b []byte) *DNSResponse {
 	response := DNSResponse{
 		qcount:    btoi(b[4:6]),
 		anscount:  btoi(b[6:8]),
@@ -114,11 +117,13 @@ func FromBytes(b []byte) *DNSResponse {
 		}
 		curr += 2
 
-		response.queries = Query{
-			name:  name,
-			qtype: qtype,
-			class: class,
-		}
+		response.queries = append(response.queries,
+			Query{
+				name:  name,
+				qtype: qtype,
+				class: class,
+			},
+		)
 	}
 
 	for range response.anscount {
@@ -139,10 +144,10 @@ func FromBytes(b []byte) *DNSResponse {
 
 		address := ""
 		if rrtype == "A" {
-			address = getipv4addr(b[curr : curr+4])
+			address = parseIPv4Addr(b[curr : curr+4])
 			curr += 4
 		} else if rrtype == "AAA" {
-			address = getipv6addr(b[curr : curr+16])
+			address = parseIPv6Addr(b[curr : curr+16])
 			curr += 16
 		}
 
@@ -206,10 +211,10 @@ func FromBytes(b []byte) *DNSResponse {
 
 		address := ""
 		if rrtype == "A" {
-			address = getipv4addr(b[curr : curr+4])
+			address = parseIPv4Addr(b[curr : curr+4])
 			curr += 4
-		} else if rrtype == "AAA" {
-			address = getipv6addr(b[curr : curr+16])
+		} else if rrtype == "AAAA" {
+			address = parseIPv6Addr(b[curr : curr+16])
 			curr += 16
 		}
 
