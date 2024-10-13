@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
 
 func ResolveURLFromRoot(url string, root string) string {
-	target := root + ":53"
+	target := root
 
 	for {
+		fmt.Printf("Asking: %s\n", target)
 		msg := NewDNSMessage(url)
 
-		address, err := net.ResolveUDPAddr("udp", target)
+		address, err := net.ResolveUDPAddr("udp", target+":53")
 		if err != nil {
 			fmt.Println("failed to resolve server address", target, err)
 			os.Exit(1)
@@ -34,6 +36,8 @@ func ResolveURLFromRoot(url string, root string) string {
 		response := ParseDNSReponse(b[:n])
 
 		if response.AnsCount > 0 {
+			fmt.Printf("Found: \n")
+			fmt.Printf("\tAnswer: %s\n", response.Answers[0].Address.String())
 			return response.Answers[0].Address.String()
 		}
 
@@ -45,9 +49,17 @@ func ResolveURLFromRoot(url string, root string) string {
 		// Ask the next server
 		for _, rr := range response.Additional {
 			if rr.Record.RRType == "A" {
-				target = rr.Address.String() + ":53"
+				fmt.Printf("Found: \n")
+				fmt.Printf("\tAuthority: %s\n", response.Authorities[0].Nameserver)
+				fmt.Printf("\tFor: %s\n", response.Authorities[0].Record.Name)
+				fmt.Printf("\tAt: %s\n", rr.Address.String())
+
+				target = rr.Address.String()
+				break
 			}
 		}
+
+		fmt.Println(strings.Repeat("-", 30))
 	}
 
 }
