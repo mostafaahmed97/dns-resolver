@@ -101,16 +101,18 @@ func parseInfo(b []byte, offset int, hasAddress bool) (info, int) {
 	}, cursor - offset
 }
 
-func ParseDNSReponse(b []byte) *DNSResponse {
-	response := DNSResponse{
-		QCount:          btoi16(b[4:6]),
-		AnsCount:        btoi16(b[6:8]),
-		AuthCount:       btoi16(b[8:10]),
-		AdditionalCount: btoi16(b[10:12]),
+func ParseDNSReponse(b []byte) *DNSMessage {
+	response := DNSMessage{
+		Header: Header{
+			QueriesCount:     btoi16(b[4:6]),
+			AnswersCount:     btoi16(b[6:8]),
+			AuthoritiesCount: btoi16(b[8:10]),
+			AdditionalCount:  btoi16(b[10:12]),
+		},
 	}
 
 	curr := 12
-	for range response.QCount {
+	for range response.Header.QueriesCount {
 		rr, n := parseRR(b, curr)
 		curr += n
 
@@ -119,7 +121,7 @@ func ParseDNSReponse(b []byte) *DNSResponse {
 		)
 	}
 
-	for range response.AnsCount {
+	for range response.Header.AnswersCount {
 		rr, n := parseRR(b, curr)
 		curr += n
 
@@ -135,7 +137,7 @@ func ParseDNSReponse(b []byte) *DNSResponse {
 			})
 	}
 
-	for range response.AuthCount {
+	for range response.Header.AuthoritiesCount {
 		rr, n := parseRR(b, curr)
 		curr += n
 
@@ -151,7 +153,7 @@ func ParseDNSReponse(b []byte) *DNSResponse {
 			})
 	}
 
-	for range response.AdditionalCount {
+	for range response.Header.AdditionalCount {
 		rr, n := parseRR(b, curr)
 		curr += n
 

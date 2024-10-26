@@ -10,6 +10,14 @@ var rrtypes = map[uint16]string{
 	28: "AAAA",
 }
 
+type Header struct {
+	TransactionId    int
+	QueriesCount     uint16
+	AnswersCount     uint16
+	AuthoritiesCount uint16
+	AdditionalCount  uint16
+}
+
 type ResourceRecord struct {
 	Name   string
 	RRType string
@@ -38,11 +46,8 @@ type Additional struct {
 	TTL     uint32
 }
 
-type DNSResponse struct {
-	QCount          uint16
-	AnsCount        uint16
-	AuthCount       uint16
-	AdditionalCount uint16
+type DNSMessage struct {
+	Header Header
 
 	Queries     []Query
 	Answers     []Answer

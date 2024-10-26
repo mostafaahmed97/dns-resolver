@@ -1,52 +1,50 @@
 package dns
 
-import "strings"
+import (
+	"strings"
+)
 
-type DNSMessage struct {
-	query string
-	bytes []byte
-}
+func NewDNSMessage(query string) []byte {
+	message := []byte{}
 
-func NewDNSMessage(query string) *DNSMessage {
-	msg := DNSMessage{query: query}
+	header := []byte{
+		// Transaction ID
+		0xaa, 0xaa,
 
-	txnId := []byte{0xaa, 0xaa}
-	flags := []byte{0x01, 0x00}
-	qryCount := []byte{0x00, 0x01}
-	ansCount := []byte{0x00, 0x00}
-	authRRCount := []byte{0x00, 0x00}
-	addnRRCount := []byte{0x00, 0x00}
+		// Flags
+		0x01, 0x00,
 
-	headerSections := [][]byte{
-		txnId, flags, qryCount, ansCount, authRRCount, addnRRCount,
+		// Queries, Answers, Authority Nameservers & Additional Count
+		0x00, 0x01,
+		0x00, 0x00,
+		0x00, 0x00,
+		0x00, 0x00,
 	}
 
-	bytes := []byte{}
+	// Domain name, encoded as <PART_LENGTH><PART>
+	qname := []byte{}
+	parts := strings.Split(query, ".")
 
-	// DNS Packet Header
-	for _, section := range headerSections {
-		bytes = append(bytes, section...)
+	for _, p := range parts {
+		l := byte(len(p))
+
+		qname = append(qname, l)
+		qname = append(qname, p...)
 	}
 
-	// DNS message
-	// Domain, added as <length of part><part>
-	urlparts := strings.Split(msg.query, ".")
-	for _, part := range urlparts {
-		bytes = append(bytes, byte(len(part)))
-		bytes = append(bytes, part...)
-	}
+	// Termination byte
+	qname = append(qname, 0x00)
 
-	// Domain termination
-	bytes = append(bytes, 0x00)
+	// QTYPE,  1 = A record (IPv4 address)
+	qtype := []byte{0x00, 0x01}
 
-	// Type A, class IN
-	recordType := []byte{0x00, 0x01}
-	recordClass := []byte{0x00, 0x01}
+	// QCLASS, 1 = IN (Internet)
+	qclass := []byte{0x00, 0x01}
 
-	bytes = append(bytes, recordType...)
-	bytes = append(bytes, recordClass...)
+	message = append(message, header...)
+	message = append(message, qname...)
+	message = append(message, qtype...)
+	message = append(message, qclass...)
 
-	msg.bytes = bytes
-
-	return &msg
+	return message
 }

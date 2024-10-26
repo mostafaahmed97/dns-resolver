@@ -12,7 +12,7 @@ func ResolveURLFromRoot(url string, root string) string {
 
 	for {
 		fmt.Printf("Asking: %s\n", target)
-		msg := NewDNSMessage(url)
+		message := NewDNSMessage(url)
 
 		address, err := net.ResolveUDPAddr("udp", target+":53")
 		if err != nil {
@@ -28,20 +28,20 @@ func ResolveURLFromRoot(url string, root string) string {
 
 		defer conn.Close()
 
-		conn.Write(msg.bytes)
+		conn.Write(message)
 
 		b := make([]byte, 1024)
 		n, _, _ := conn.ReadFromUDP(b)
 
 		response := ParseDNSReponse(b[:n])
 
-		if response.AnsCount > 0 {
+		if response.Header.AnswersCount > 0 {
 			fmt.Printf("Found: \n")
 			fmt.Printf("\tAnswer: %s\n", response.Answers[0].Address.String())
 			return response.Answers[0].Address.String()
 		}
 
-		if response.AuthCount == 0 {
+		if response.Header.AuthoritiesCount == 0 {
 			fmt.Println("no auth found for", url)
 			os.Exit(1)
 		}
