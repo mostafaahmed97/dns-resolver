@@ -7,12 +7,12 @@ import (
 	"strings"
 )
 
-func ResolveURLFromRoot(url string, root string) string {
+func ResolveFromRoot(domain string, root string) string {
 	target := root
 
 	for {
 		fmt.Printf("Asking: %s\n", target)
-		message := NewDNSMessage(url)
+		message := NewDNSMessage(domain)
 
 		c, err := net.Dial("udp", target+":53")
 		if err != nil {
@@ -36,7 +36,7 @@ func ResolveURLFromRoot(url string, root string) string {
 		}
 
 		if response.Header.AuthoritiesCount == 0 {
-			fmt.Println("no auth found for", url)
+			fmt.Println("no auth found for", domain)
 			os.Exit(1)
 		}
 
