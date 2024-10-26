@@ -14,24 +14,18 @@ func ResolveURLFromRoot(url string, root string) string {
 		fmt.Printf("Asking: %s\n", target)
 		message := NewDNSMessage(url)
 
-		address, err := net.ResolveUDPAddr("udp", target+":53")
-		if err != nil {
-			fmt.Println("failed to resolve server address", target, err)
-			os.Exit(1)
-		}
-
-		conn, err := net.DialUDP("udp", nil, address)
+		c, err := net.Dial("udp", target+":53")
 		if err != nil {
 			fmt.Println("connection to server failed")
 			os.Exit(1)
 		}
 
-		defer conn.Close()
+		defer c.Close()
 
-		conn.Write(message)
+		c.Write(message)
 
 		b := make([]byte, 1024)
-		n, _, _ := conn.ReadFromUDP(b)
+		n, _ := c.Read(b)
 
 		response := ParseDNSReponse(b[:n])
 
