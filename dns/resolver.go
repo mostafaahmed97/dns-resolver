@@ -42,10 +42,10 @@ func ResolveFromRoot(domain string, root string) string {
 
 		// Ask the next server
 		for _, rr := range response.Additional {
-			if rr.Record.RRType == "A" {
+			if rr.RRType == "A" {
 				fmt.Printf("Found: \n")
 				fmt.Printf("\tAuthority: %s\n", response.Authorities[0].Nameserver)
-				fmt.Printf("\tFor: %s\n", response.Authorities[0].Record.Name)
+				fmt.Printf("\tFor: %s\n", response.Authorities[0].Nameserver)
 				fmt.Printf("\tAt: %s\n", rr.Address.String())
 
 				target = rr.Address.String()

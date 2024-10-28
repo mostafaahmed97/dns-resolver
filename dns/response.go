@@ -22,35 +22,20 @@ type ResourceRecord struct {
 	Name   string
 	RRType string
 	Class  string
-}
+	TTL    uint32
 
-type Query struct {
-	Record ResourceRecord
-}
-
-type Answer struct {
-	Record  ResourceRecord
-	Address net.IP
-	TTL     uint32
-}
-
-type Authority struct {
-	Record     ResourceRecord
+	// Available on RRs with type `NS`
 	Nameserver string
-	TTL        uint32
-}
 
-type Additional struct {
-	Record  ResourceRecord
+	// Available on RRs with type `A` & `AAAA`
 	Address net.IP
-	TTL     uint32
 }
 
 type DNSMessage struct {
 	Header Header
 
-	Queries     []Query
-	Answers     []Answer
-	Authorities []Authority
-	Additional  []Additional
+	Queries     []ResourceRecord
+	Answers     []ResourceRecord
+	Authorities []ResourceRecord
+	Additional  []ResourceRecord
 }
