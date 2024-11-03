@@ -1,3 +1,3 @@
-module github.com/mostafaahmed97/rootwalker
+module github.com/mostafaahmed97/rootwalk
 
 go 1.22.5
