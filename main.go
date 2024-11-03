@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/mostafaahmed97/dns-resolver/dns"
+	"github.com/mostafaahmed97/rootwalker/dns"
 )
 
 var roots = map[string]string{
