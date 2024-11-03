@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/mostafaahmed97/dns-resolver/dns"
 )
@@ -37,5 +38,8 @@ func main() {
 	}
 
 	fmt.Printf("Resolving: %s from Root: %s (%s)\n", url, roots[r], r)
+
+	start := time.Now()
 	dns.ResolveFromRoot(url, roots[r], 0)
+	fmt.Printf("Resolution time: %s\n", time.Since(start))
 }
