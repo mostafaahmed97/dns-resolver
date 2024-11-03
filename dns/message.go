@@ -41,6 +41,24 @@ type DNSMessage struct {
 	Additional  []ResourceRecord
 }
 
+func (m *DNSMessage) AnswerAddresses() []string {
+	answers := []string{}
+	for _, a := range m.Answers {
+		answers = append(answers, a.Address.String())
+	}
+
+	return answers
+}
+
+func (m *DNSMessage) AuthorityNames() []string {
+	nameservers := []string{}
+	for _, a := range m.Authorities {
+		nameservers = append(nameservers, a.Nameserver)
+	}
+
+	return nameservers
+}
+
 func NewDNSMessage(query string) []byte {
 	message := []byte{}
 

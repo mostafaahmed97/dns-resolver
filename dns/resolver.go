@@ -40,15 +40,24 @@ func ResolveFromRoot(domain string, root string, depth int) string {
 			response.Header.AuthoritiesCount,
 			response.Header.AdditionalCount,
 		)
+
+		if response.Header.AuthoritiesCount > 0 {
+			fmt.Printf(
+				"%s\t Authorities: \n\t\t%s\n\t \n",
+				indent,
+				strings.Join(response.AuthorityNames(), ", \n"+indent+"\t\t"),
+			)
+		}
+
 		if response.Header.AnswersCount > 0 {
-			answer := response.Answers[0].Address.String()
 			fmt.Printf(
 				"%s✓ Found: %s -> %s\n",
 				indent,
 				domain,
-				answer,
+				"["+strings.Join(response.AnswerAddresses(), ", ")+"]",
 			)
-			return answer
+
+			return response.Answers[0].Address.String()
 		}
 
 		// Resolve NS with no additional records
@@ -74,12 +83,10 @@ func ResolveFromRoot(domain string, root string, depth int) string {
 				)
 
 				target = rr.Address.String()
-				depth++
 				break
 			}
 		}
 
-		fmt.Printf("%s%s\n", indent, "---")
+		fmt.Printf("%s%s\n", indent, strings.Repeat("-", 20))
 	}
-
 }
