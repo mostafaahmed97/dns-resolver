@@ -7,10 +7,17 @@ import (
 	"strings"
 )
 
-func ResolveFromRoot(domain string, root string) string {
+func ResolveFromRoot(domain string, root string, depth int) string {
 	target := root
 
 	for {
+		indent := strings.Repeat(" ", depth*2)
+		fmt.Printf(
+			"%s➜ Querying %s for %s\n",
+			indent,
+			target,
+			domain,
+		)
 
 		conn, err := net.Dial("udp", target+":53")
 		if err != nil {
@@ -19,7 +26,6 @@ func ResolveFromRoot(domain string, root string) string {
 		}
 		defer conn.Close()
 
-		fmt.Printf("Asking: %s\n", target)
 		message := NewDNSMessage(domain)
 		conn.Write(message)
 
@@ -27,33 +33,53 @@ func ResolveFromRoot(domain string, root string) string {
 		n, _ := conn.Read(b)
 
 		response := ParseDNSReponse(b[:n])
-
+		fmt.Printf(
+			"%s∞ Got: %d answers, %d authorities, %d additional\n",
+			indent,
+			response.Header.AnswersCount,
+			response.Header.AuthoritiesCount,
+			response.Header.AdditionalCount,
+		)
 		if response.Header.AnswersCount > 0 {
-			fmt.Printf("Found: \n")
-			fmt.Printf("\tAnswer: %s\n", response.Answers[0].Address.String())
-			return response.Answers[0].Address.String()
+			answer := response.Answers[0].Address.String()
+			fmt.Printf(
+				"%s✓ Found: %s -> %s\n",
+				indent,
+				domain,
+				answer,
+			)
+			return answer
 		}
 
 		// Resolve NS with no additional records
 		if response.Header.AuthoritiesCount > 0 && response.Header.AdditionalCount == 0 {
 			nameserver := response.Authorities[0].Nameserver
-			target = ResolveFromRoot(nameserver, root)
+			fmt.Printf(
+				"%s⤷ Need to resolve nameserver: %s\n",
+				indent,
+				nameserver,
+			)
+
+			target = ResolveFromRoot(nameserver, root, depth+1)
 		}
 
 		// Ask the next server
 		for _, rr := range response.Additional {
 			if rr.RRType == "A" {
-				fmt.Printf("Found: \n")
-				fmt.Printf("\tAuthority: %s\n", response.Authorities[0].Nameserver)
-				fmt.Printf("\tFor: %s\n", response.Authorities[0].Nameserver)
-				fmt.Printf("\tAt: %s\n", rr.Address.String())
+				fmt.Printf(
+					"%s⤷ Following referral to: %s (%s)\n",
+					indent,
+					rr.Address.String(),
+					rr.Name,
+				)
 
 				target = rr.Address.String()
+				depth++
 				break
 			}
 		}
 
-		fmt.Println(strings.Repeat("-", 30))
+		fmt.Printf("%s%s\n", indent, "---")
 	}
 
 }

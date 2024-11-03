@@ -36,8 +36,6 @@ func main() {
 		r = os.Args[2]
 	}
 
-	fmt.Printf("Resolving: %s from Root Server: %s(%s)\n", url, r, roots[r])
-	ip := dns.ResolveFromRoot(url, roots[r])
-
-	fmt.Printf("%s is at %s\n", url, ip)
+	fmt.Printf("Resolving: %s from Root: %s (%s)\n", url, roots[r], r)
+	dns.ResolveFromRoot(url, roots[r], 0)
 }
