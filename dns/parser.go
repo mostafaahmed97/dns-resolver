@@ -1,99 +1,78 @@
 package dns
 
-import "net"
+import (
+	"net"
+	"strings"
+)
 
-// returns host and number of bytes read
-func parseDomainName(b []byte, offset int, dataLength int) (string, int) {
+func parseName(b []byte, offset int) (string, int) {
+	labels := []string{}
 	cursor := offset
-	host := ""
 
 	for {
-		if dataLength > 0 && (cursor-offset) >= dataLength {
-			break
-		}
+		isPtr := b[cursor] == 0xc0
 
-		isPointer := b[cursor] == 0xc0
-		part := ""
-
-		// part can be a pointer referencing a name encountered before
-		if isPointer {
-			part, _ = parseDomainName(b, int(b[cursor+1]), 0)
-
+		// Pointer always signifies end, RFC 1035 4.14
+		if isPtr {
+			l, _ := parseName(b, int(b[cursor+1]))
+			labels = append(labels, l)
 			cursor += 2
 
-			// assume name that starts with pointer
-			// is only a pointer
-			if host == "" {
-				return part, 2
-			}
-		} else {
-			len := int(b[cursor])
-			cursor += 1
-
-			part = string(b[cursor : cursor+len])
-			cursor += len
-		}
-
-		if host == "" {
-			host = part
-		} else {
-			host = host + "." + part
-		}
-
-		if b[cursor] == 0x00 {
-			cursor += 1
 			break
 		}
+
+		labelLen := int(b[cursor])
+		cursor += 1
+
+		// Octet labels terminator
+		if labelLen == 0 {
+			break
+		}
+
+		l := string(b[cursor : cursor+labelLen])
+		cursor += labelLen
+		labels = append(labels, l)
 	}
 
-	return host, cursor - offset
+	return strings.Join(labels, "."), cursor - offset
 }
 
 func parseRR(b []byte, offset int, isQuery bool) (ResourceRecord, int) {
+	var n int
+	var rr ResourceRecord
+
 	cursor := offset
 
-	name, n := parseDomainName(b, cursor, 0)
+	rr.Name, n = parseName(b, cursor)
 	cursor += n
 
-	rrtype := rrtypes[btoi16(b[cursor:cursor+2])]
+	rr.RRType = rrtypes[btoi16(b[cursor:cursor+2])]
 	cursor += 2
 
-	class := "IN"
+	rr.Class = "IN"
 	cursor += 2
 
+	// For queries, we're done after the common fields
 	if isQuery {
-		return ResourceRecord{
-			Name:   name,
-			RRType: rrtype,
-			Class:  class,
-		}, cursor - offset
+		return rr, cursor - offset
 	}
 
-	ttl := btoi32(b[cursor : cursor+4])
+	rr.TTL = btoi32(b[cursor : cursor+4])
 	cursor += 4
 
 	dataLen := int(btoi16(b[cursor : cursor+2]))
 	cursor += 2
 
-	address := net.IP{}
-	nameserver := ""
-
-	if rrtype == "NS" {
-		nameserver, _ = parseDomainName(b, cursor, dataLen)
-	} else if rrtype == "A" || rrtype == "AAAA" {
-		address = net.IP(b[cursor : cursor+dataLen])
+	switch rr.RRType {
+	case "NS":
+		rr.Nameserver, _ = parseName(b, cursor)
+	case "A", "AAAA":
+		rr.Address = net.IP(b[cursor : cursor+dataLen])
 	}
 
 	cursor += dataLen
 
-	return ResourceRecord{
-		Name:       name,
-		RRType:     rrtype,
-		Class:      class,
-		TTL:        ttl,
-		Address:    address,
-		Nameserver: nameserver,
-	}, cursor - offset
+	return rr, cursor - offset
 }
 
 func ParseDNSReponse(b []byte) *DNSMessage {
@@ -106,31 +85,31 @@ func ParseDNSReponse(b []byte) *DNSMessage {
 		},
 	}
 
-	curr := 12
+	cursor := 12
 	for range response.Header.QueriesCount {
-		rr, n := parseRR(b, curr, true)
-		curr += n
+		rr, n := parseRR(b, cursor, true)
+		cursor += n
 
 		response.Queries = append(response.Queries, rr)
 	}
 
 	for range response.Header.AnswersCount {
-		rr, n := parseRR(b, curr, false)
-		curr += n
+		rr, n := parseRR(b, cursor, false)
+		cursor += n
 
 		response.Answers = append(response.Answers, rr)
 	}
 
 	for range response.Header.AuthoritiesCount {
-		rr, n := parseRR(b, curr, false)
-		curr += n
+		rr, n := parseRR(b, cursor, false)
+		cursor += n
 
 		response.Authorities = append(response.Authorities, rr)
 	}
 
 	for range response.Header.AdditionalCount {
-		rr, n := parseRR(b, curr, false)
-		curr += n
+		rr, n := parseRR(b, cursor, false)
+		cursor += n
 
 		response.Additional = append(response.Additional, rr)
 	}

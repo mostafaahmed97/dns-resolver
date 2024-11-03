@@ -11,21 +11,20 @@ func ResolveFromRoot(domain string, root string) string {
 	target := root
 
 	for {
-		fmt.Printf("Asking: %s\n", target)
-		message := NewDNSMessage(domain)
 
-		c, err := net.Dial("udp", target+":53")
+		conn, err := net.Dial("udp", target+":53")
 		if err != nil {
 			fmt.Println("connection to server failed")
 			os.Exit(1)
 		}
+		defer conn.Close()
 
-		defer c.Close()
-
-		c.Write(message)
+		fmt.Printf("Asking: %s\n", target)
+		message := NewDNSMessage(domain)
+		conn.Write(message)
 
 		b := make([]byte, 1024)
-		n, _ := c.Read(b)
+		n, _ := conn.Read(b)
 
 		response := ParseDNSReponse(b[:n])
 
@@ -35,9 +34,10 @@ func ResolveFromRoot(domain string, root string) string {
 			return response.Answers[0].Address.String()
 		}
 
-		if response.Header.AuthoritiesCount == 0 {
-			fmt.Println("no auth found for", domain)
-			os.Exit(1)
+		// Resolve NS with no additional records
+		if response.Header.AuthoritiesCount > 0 && response.Header.AdditionalCount == 0 {
+			nameserver := response.Authorities[0].Nameserver
+			target = ResolveFromRoot(nameserver, root)
 		}
 
 		// Ask the next server
