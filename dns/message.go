@@ -67,7 +67,7 @@ func NewDNSMessage(query string) []byte {
 		0xaa, 0xaa,
 
 		// Flags
-		0x01, 0x00,
+		0x00, 0x00,
 
 		// Queries, Answers, Authority Nameservers & Additional Count
 		0x00, 0x01,
