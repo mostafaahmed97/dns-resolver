@@ -10,11 +10,16 @@ func parseName(b []byte, offset int) (string, int) {
 	cursor := offset
 
 	for {
-		isPtr := b[cursor] == 0xc0
+		isPtr := b[cursor]&0xC0 == 0xC0
 
 		// Pointer always signifies end, RFC 1035 4.14
 		if isPtr {
-			l, _ := parseName(b, int(b[cursor+1]))
+			pointerOffset := btoi16([]byte{
+				b[cursor] & 0x3F,
+				b[cursor+1],
+			})
+
+			l, _ := parseName(b, int(pointerOffset))
 			labels = append(labels, l)
 			cursor += 2
 
