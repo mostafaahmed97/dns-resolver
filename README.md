@@ -3,7 +3,7 @@
 [![Ceasefire Now](https://badge.techforpalestine.org/default)](https://techforpalestine.org/learn-more)
 
 rootwalk is a tiny DNS resolver I wrote to learn more about how 
-DNS works and to practice writing Go. 
+DNS works and to practice writing Go. Read the blog post: https://mostafaahmed.hashnode.dev/series/building-a-dns-resolver-in-go-from-scratch
 
 It's a simple recursive<sup>*</sup> 
 resolver using only the Go standard library. It's meant 
